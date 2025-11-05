@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",  // 配置名称
+            "includePath": [  // 头文件搜索路径（最重要的配置！）
+                "${workspaceFolder}/Include",  // NPcap头文件路径
+                "${workspaceFolder}/**"        // 工作区所有子目录
+            ],
+            "defines": [      // 预定义宏（相当于代码中的 #define）
+                "_DEBUG",     // 调试模式定义
+                "UNICODE",    // 使用Unicode字符集
+                "_UNICODE"    // 使用Unicode字符集
+            ],
+            "compilerPath": "D:/TDM-GCC/bin/g++.exe",  // 编译器路径
+            "cStandard": "c17",       // C语言标准
+            "cppStandard": "c++17",   // C++语言标准
+            "intelliSenseMode": "windows-gcc-x64"  // 智能感知模式
+        }
+    ],
+    "version": 4
+}

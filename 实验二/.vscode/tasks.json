@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-npcap",  // 任务名称（在launch.json中引用）
+            "type": "shell",         // 在终端中执行
+            "command": "g++",        // 执行的命令
+            "args": [                // 命令行参数（对应g++的参数）
+                "-g",                // 生成调试信息
+                "src/main.cpp",      // 源文件
+                "-o", "bin/main.exe", // 输出文件
+                "-I", "${workspaceFolder}/Include",  // 包含目录
+                "-L", "${workspaceFolder}/Lib/x64",  // 库目录
+                "-l", "Packet",      // 链接Packet.lib
+                "-l", "wpcap",       // 链接wpcap.lib  
+                "-l", "ws2_32",      // 链接Windows Socket库
+                "-l", "iphlpapi",    // 链接IP帮助库
+                "-static" ,           // 静态链接
+                "-fexec-charset=UTF-8",    // 关键：执行字符集为UTF-8
+                "-finput-charset=UTF-8"   // 关键：输入字符集为UTF-8
+            ],
+            "group": {
+                "kind": "build",     // 属于构建任务组
+                "isDefault": true    // 默认构建任务（Ctrl+Shift+B）
+            },
+            "problemMatcher": ["$gcc"],  // 错误信息匹配器
+            "detail": "编译NPcap项目"
+        }
+    ]
+}
