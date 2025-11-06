@@ -1,230 +1,245 @@
-#include <iostream>  // ÊäÈëÊä³öÁ÷£¬ÓÃÓÚ¿ØÖÆÌ¨Êä³ö
-#include <iomanip>   // ÊäÈëÊä³ö¸ñÊ½»¯£¬ÓÃÓÚÉèÖÃÊä³ö¸ñÊ½
-#include <winsock2.h> // Windows Socket API£¬ÓÃÓÚÍøÂç±à³Ì
-#include "pcap.h"     // NPcap¿âÍ·ÎÄ¼ş£¬ÓÃÓÚÊı¾İ°ü²¶»ñ
+#include <iostream>  // è¾“å…¥è¾“å‡ºæµï¼Œç”¨äºæ§åˆ¶å°è¾“å‡º
+#include <iomanip>   // è¾“å…¥è¾“å‡ºæ ¼å¼åŒ–ï¼Œç”¨äºè®¾ç½®è¾“å‡ºæ ¼å¼
+#include <winsock2.h> // Windows Socket APIï¼Œç”¨äºç½‘ç»œç¼–ç¨‹
+#include "pcap.h"     // NPcapåº“å¤´æ–‡ä»¶ï¼Œç”¨äºæ•°æ®åŒ…æ•è·
 
-#pragma comment(lib, "ws2_32.lib")  // Á´½ÓWindows Socket¿â
+#pragma comment(lib, "ws2_32.lib")  // é“¾æ¥Windows Socketåº“
 
-// ÒÔÌ«ÍøÖ¡Í·½á¹¹¶¨Òå£¨¹²14×Ö½Ú£©
+// ä»¥å¤ªç½‘å¸§å¤´ç»“æ„å®šä¹‰ï¼ˆå…±14å­—èŠ‚ï¼‰
 struct ethernet_header {
-    u_char dest_mac[6];  // Ä¿µÄMACµØÖ·£¨6×Ö½Ú£©
-    u_char src_mac[6];   // Ô´MACµØÖ·£¨6×Ö½Ú£©
-    u_short ether_type;  // ÀàĞÍ/³¤¶È×Ö¶Î£¨2×Ö½Ú£©£¬0x0800±íÊ¾IPv4
+    u_char dest_mac[6];  // ç›®çš„MACåœ°å€ï¼ˆ6å­—èŠ‚ï¼‰
+    u_char src_mac[6];   // æºMACåœ°å€ï¼ˆ6å­—èŠ‚ï¼‰
+    u_short ether_type;  // ç±»å‹/é•¿åº¦å­—æ®µï¼ˆ2å­—èŠ‚ï¼‰ï¼Œ0x0800è¡¨ç¤ºIPv4
 };
 
-// IPÍ·²¿½á¹¹¶¨Òå£¨±ê×¼20×Ö½Ú£©
+// IPå¤´éƒ¨ç»“æ„å®šä¹‰ï¼ˆæ ‡å‡†20å­—èŠ‚ï¼‰
 struct ip_header {
-    u_char  ver_ihl;     // °æ±¾(4Î») + Í·²¿³¤¶È(4Î»£¬µ¥Î»£º4×Ö½Ú)
-    u_char  tos;         // ·şÎñÀàĞÍ£¨8Î»£©
-    u_short total_len;   // ×Ü³¤¶È£¨16Î»£©£¬Õû¸öIPÊı¾İ°üµÄ³¤¶È
-    u_short id;          // ±êÊ¶£¨16Î»£©£¬ÓÃÓÚ·ÖÆ¬ÖØ×é
-    u_short flags_off;   // ±êÖ¾(3Î») + Æ¬Æ«ÒÆ(13Î»)
-    u_char  ttl;         // Éú´æÊ±¼ä£¨8Î»£©£¬·ÀÖ¹Êı¾İ°üÎŞÏŞÑ­»·
-    u_char  protocol;    // Ğ­ÒéÀàĞÍ£¨8Î»£©£¬1=ICMP, 6=TCP, 17=UDP
-    u_short checksum;    // Í·²¿Ğ£ÑéºÍ£¨16Î»£©£¬ÓÃÓÚ´íÎó¼ì²â
-    u_int   src_addr;    // Ô´IPµØÖ·£¨32Î»£©£¬ÍøÂç×Ö½ÚĞò
-    u_int   dst_addr;    // Ä¿µÄIPµØÖ·£¨32Î»£©£¬ÍøÂç×Ö½ÚĞò
+    u_char  ver_ihl;     // ç‰ˆæœ¬(4ä½) + å¤´éƒ¨é•¿åº¦(4ä½ï¼Œå•ä½ï¼š4å­—èŠ‚)
+    u_char  tos;         // æœåŠ¡ç±»å‹ï¼ˆ8ä½ï¼‰
+    u_short total_len;   // æ€»é•¿åº¦ï¼ˆ16ä½ï¼‰ï¼Œæ•´ä¸ªIPæ•°æ®åŒ…çš„é•¿åº¦
+    u_short id;          // æ ‡è¯†ï¼ˆ16ä½ï¼‰ï¼Œç”¨äºåˆ†ç‰‡é‡ç»„
+    u_short flags_off;   // æ ‡å¿—(3ä½) + ç‰‡åç§»(13ä½)
+    u_char  ttl;         // ç”Ÿå­˜æ—¶é—´ï¼ˆ8ä½ï¼‰ï¼Œé˜²æ­¢æ•°æ®åŒ…æ— é™å¾ªç¯
+    u_char  protocol;    // åè®®ç±»å‹ï¼ˆ8ä½ï¼‰ï¼Œ1=ICMP, 6=TCP, 17=UDP
+    u_short checksum;    // å¤´éƒ¨æ ¡éªŒå’Œï¼ˆ16ä½ï¼‰ï¼Œç”¨äºé”™è¯¯æ£€æµ‹
+    u_int   src_addr;    // æºIPåœ°å€ï¼ˆ32ä½ï¼‰ï¼Œç½‘ç»œå­—èŠ‚åº
+    u_int   dst_addr;    // ç›®çš„IPåœ°å€ï¼ˆ32ä½ï¼‰ï¼Œç½‘ç»œå­—èŠ‚åº
 };
 
-// Í¨ÓÃĞ£ÑéºÍ¼ÆËãº¯Êı
-// ²ÎÊı£ºbuffer-Ö¸ÏòÊı¾İµÄÖ¸Õë£¬size-Êı¾İ³¤¶È£¨×Ö½Ú£©
-// ·µ»ØÖµ£º¼ÆËã³öµÄ16Î»Ğ£ÑéºÍ
+// é€šç”¨æ ¡éªŒå’Œè®¡ç®—å‡½æ•°
+// å‚æ•°ï¼šbuffer-æŒ‡å‘æ•°æ®çš„æŒ‡é’ˆï¼Œsize-æ•°æ®é•¿åº¦ï¼ˆå­—èŠ‚ï¼‰
+// è¿”å›å€¼ï¼šè®¡ç®—å‡ºçš„16ä½æ ¡éªŒå’Œ
 u_short calculate_checksum(const u_short* buffer, int size) {
-    uint32_t sum = 0;  // Ê¹ÓÃ32Î»±äÁ¿·ÀÖ¹Òç³ö
+    uint32_t sum = 0;  // ä½¿ç”¨32ä½å˜é‡é˜²æ­¢æº¢å‡º
     
-    // ½«Ã¿16Î»×ÖÏà¼Ó£¨ÍøÂç×Ö½ÚĞò£©
+    // å°†æ¯16ä½å­—ç›¸åŠ ï¼ˆç½‘ç»œå­—èŠ‚åºï¼‰
     for (int i = 0; i < size / 2; i++) {
-        sum += buffer[i];  // ÀÛ¼ÓÃ¿¸ö16Î»×Ö
+        sum += buffer[i];  // ç´¯åŠ æ¯ä¸ª16ä½å­—
     }
     
-    // ´¦ÀíÆæÊı³¤¶ÈÇé¿ö£ºÈç¹ûÊı¾İ³¤¶ÈÎªÆæÊı£¬´¦Àí×îºóÒ»¸ö×Ö½Ú
+    // å¤„ç†å¥‡æ•°é•¿åº¦æƒ…å†µï¼šå¦‚æœæ•°æ®é•¿åº¦ä¸ºå¥‡æ•°ï¼Œå¤„ç†æœ€åä¸€ä¸ªå­—èŠ‚
     if (size % 2 == 1) {
-        sum += ((u_char*)buffer)[size - 1] << 8;  // ×îºóÒ»¸ö×Ö½Ú×óÒÆ8Î»ºóÏà¼Ó
+        sum += ((u_char*)buffer)[size - 1] << 8;  // æœ€åä¸€ä¸ªå­—èŠ‚å·¦ç§»8ä½åç›¸åŠ 
     }
     
-    // ´¦Àí½øÎ»£º½«¸ß16Î»µÄ½øÎ»¼Óµ½µÍ16Î»
+    // å¤„ç†è¿›ä½ï¼šå°†é«˜16ä½çš„è¿›ä½åŠ åˆ°ä½16ä½
     while (sum >> 16) {
-        sum = (sum & 0xFFFF) + (sum >> 16);  // È¡µÍ16Î»¼ÓÉÏ¸ß16Î»
+        sum = (sum & 0xFFFF) + (sum >> 16);  // å–ä½16ä½åŠ ä¸Šé«˜16ä½
     }
     
-    return (u_short)~sum;  // È¡·´ÂëµÃµ½×îÖÕĞ£ÑéºÍ
+    return (u_short)~sum;  // å–åç å¾—åˆ°æœ€ç»ˆæ ¡éªŒå’Œ
 }
 
-// IPÍ·²¿×¨ÓÃĞ£ÑéºÍ¼ÆËãº¯Êı
-// ²ÎÊı£ºip_hdr-Ö¸ÏòIPÍ·²¿µÄÖ¸Õë
-// ·µ»ØÖµ£ºIPÍ·²¿Ğ£ÑéºÍ
+// IPå¤´éƒ¨ä¸“ç”¨æ ¡éªŒå’Œè®¡ç®—å‡½æ•°
+// å‚æ•°ï¼šip_hdr-æŒ‡å‘IPå¤´éƒ¨çš„æŒ‡é’ˆ
+// è¿”å›å€¼ï¼šIPå¤´éƒ¨æ ¡éªŒå’Œ
 u_short calculate_ip_checksum(const ip_header* ip_hdr) {
-    // ´´½¨ÁÙÊ±¸±±¾£¬±ÜÃâĞŞ¸ÄÔ­Ê¼Êı¾İ
+    // åˆ›å»ºä¸´æ—¶å‰¯æœ¬ï¼Œé¿å…ä¿®æ”¹åŸå§‹æ•°æ®
     ip_header temp_hdr = *ip_hdr;
-    temp_hdr.checksum = 0;  // Ğ£ÑéºÍ×Ö¶ÎÇåÁã£¨¼ÆËãÊ±²»°üº¬×ÔÉí£©
+    temp_hdr.checksum = 0;  // æ ¡éªŒå’Œå­—æ®µæ¸…é›¶ï¼ˆè®¡ç®—æ—¶ä¸åŒ…å«è‡ªèº«ï¼‰
     
-    // µ÷ÓÃÍ¨ÓÃĞ£ÑéºÍº¯Êı¼ÆËãÕû¸öIPÍ·²¿
+    // è°ƒç”¨é€šç”¨æ ¡éªŒå’Œå‡½æ•°è®¡ç®—æ•´ä¸ªIPå¤´éƒ¨
     return calculate_checksum((u_short*)&temp_hdr, sizeof(ip_header));
 }
 
-// IPµØÖ·×ª»»º¯Êı£º½«32Î»ÍøÂç×Ö½ÚĞòIPµØÖ·×ª»»Îªµã·ÖÊ®½øÖÆ×Ö·û´®
-// ²ÎÊı£ºip_addr-ÍøÂç×Ö½ÚĞòµÄIPµØÖ·
-// ·µ»ØÖµ£ºµã·ÖÊ®½øÖÆ¸ñÊ½µÄIPµØÖ·×Ö·û´®
+// IPåœ°å€è½¬æ¢å‡½æ•°ï¼šå°†32ä½ç½‘ç»œå­—èŠ‚åºIPåœ°å€è½¬æ¢ä¸ºç‚¹åˆ†åè¿›åˆ¶å­—ç¬¦ä¸²
+// å‚æ•°ï¼šip_addr-ç½‘ç»œå­—èŠ‚åºçš„IPåœ°å€
+// è¿”å›å€¼ï¼šç‚¹åˆ†åè¿›åˆ¶æ ¼å¼çš„IPåœ°å€å­—ç¬¦ä¸²
 std::string ip_to_string(u_int ip_addr) {
     struct in_addr addr;
-    addr.s_addr = ip_addr;  // ÉèÖÃIPµØÖ·
-    char* ip_str = inet_ntoa(addr);  // ×ª»»Îª×Ö·û´®
-    return ip_str ? std::string(ip_str) : "Invalid IP";  // ·µ»Ø½á¹û»ò´íÎóĞÅÏ¢
+    addr.s_addr = ip_addr;  // è®¾ç½®IPåœ°å€
+    char* ip_str = inet_ntoa(addr);  // è½¬æ¢ä¸ºå­—ç¬¦ä¸²
+    return ip_str ? std::string(ip_str) : "Invalid IP";  // è¿”å›ç»“æœæˆ–é”™è¯¯ä¿¡æ¯
 }
 
-// Êı¾İ°ü´¦Àí»Øµ÷º¯Êı£¨NPcapÃ¿²¶»ñÒ»¸öÊı¾İ°üµ÷ÓÃÒ»´Î£©
-// ²ÎÊı£ºuser-ÓÃ»§Êı¾İ£¬header-Êı¾İ°üÍ·ĞÅÏ¢£¬packet-Êı¾İ°üÄÚÈİ
+// æ•°æ®åŒ…å¤„ç†å›è°ƒå‡½æ•°ï¼ˆNPcapæ¯æ•è·ä¸€ä¸ªæ•°æ®åŒ…è°ƒç”¨ä¸€æ¬¡ï¼‰
+// å‚æ•°ï¼šuser-ç”¨æˆ·æ•°æ®ï¼Œheader-æ•°æ®åŒ…å¤´ä¿¡æ¯ï¼Œpacket-æ•°æ®åŒ…å†…å®¹
 void packet_handler(u_char* user, const struct pcap_pkthdr* header, const u_char* packet) {
-    static int packet_count = 0;  // ¾²Ì¬±äÁ¿£¬¼ÇÂ¼´¦ÀíµÄIPv4Êı¾İ°üÊıÁ¿
+    static int packet_count = 0;  // é™æ€å˜é‡ï¼Œè®°å½•å¤„ç†çš„IPv4æ•°æ®åŒ…æ•°é‡
     
-    // ½âÎöÒÔÌ«ÍøÖ¡Í·£º½«Êı¾İ°ü¿ªÍ·×ª»»ÎªÒÔÌ«ÍøÖ¡Í·½á¹¹
+    // è§£æä»¥å¤ªç½‘å¸§å¤´ï¼šå°†æ•°æ®åŒ…å¼€å¤´è½¬æ¢ä¸ºä»¥å¤ªç½‘å¸§å¤´ç»“æ„
     ethernet_header* eth_header = (ethernet_header*)packet;
-    u_short ether_type = ntohs(eth_header->ether_type);  // ×ª»»×Ö½ÚĞò²¢»ñÈ¡ÀàĞÍ
+    u_short ether_type = ntohs(eth_header->ether_type);  // è½¬æ¢å­—èŠ‚åºå¹¶è·å–ç±»å‹
     
-    // Ö»´¦ÀíIPv4Êı¾İ°ü£¨ÒÔÌ«ÍøÀàĞÍ0x0800£©
+    // åªå¤„ç†IPv4æ•°æ®åŒ…ï¼ˆä»¥å¤ªç½‘ç±»å‹0x0800ï¼‰
     if (ether_type != 0x0800) {
-        return;  // Ìø¹ı·ÇIPv4Êı¾İ°ü
+        return;  // è·³è¿‡éIPv4æ•°æ®åŒ…
     }
     
-    packet_count++;  // Ôö¼ÓIPv4Êı¾İ°ü¼ÆÊıÆ÷
+    packet_count++;  // å¢åŠ IPv4æ•°æ®åŒ…è®¡æ•°å™¨
     
-    // ½âÎöIPÍ·²¿£ºÒÔÌ«ÍøÖ¡Í·Ö®ºó¾ÍÊÇIPÍ·²¿
+    // è§£æIPå¤´éƒ¨ï¼šä»¥å¤ªç½‘å¸§å¤´ä¹‹åå°±æ˜¯IPå¤´éƒ¨
     ip_header* ip_hdr = (ip_header*)(packet + sizeof(ethernet_header));
     
-    // ÑéÖ¤Êı¾İ°ü³¤¶È£ºÈ·±£°üº¬ÍêÕûµÄÒÔÌ«ÍøÖ¡Í·ºÍIPÍ·²¿
+    // éªŒè¯æ•°æ®åŒ…é•¿åº¦ï¼šç¡®ä¿åŒ…å«å®Œæ•´çš„ä»¥å¤ªç½‘å¸§å¤´å’ŒIPå¤´éƒ¨
     if (header->len < sizeof(ethernet_header) + sizeof(ip_header)) {
-        return;  // Êı¾İ°ü³¤¶È²»×ã£¬Ìø¹ı´¦Àí
+        return;  // æ•°æ®åŒ…é•¿åº¦ä¸è¶³ï¼Œè·³è¿‡å¤„ç†
     }
     
-    // Êä³öÊı¾İ°ü»ù±¾ĞÅÏ¢
-    std::cout << "=== IPÊı¾İ±¨ #" << packet_count << " ===" << std::endl;
+    // è¾“å‡ºæ•°æ®åŒ…åŸºæœ¬ä¿¡æ¯
+    std::cout << "=== IPæ•°æ®æŠ¥ #" << packet_count << " ===" << std::endl;
     
-    // ÏÔÊ¾Ô´MACµØÖ·£¨6×Ö½Ú£¬Ê®Áù½øÖÆ¸ñÊ½£©
-    std::cout << "Ô´MACµØÖ·: ";
+    // æ˜¾ç¤ºæºMACåœ°å€ï¼ˆ6å­—èŠ‚ï¼Œåå…­è¿›åˆ¶æ ¼å¼ï¼‰
+    std::cout << "æºMACåœ°å€: ";
     for (int i = 0; i < 6; i++) {
-        printf("%02x", eth_header->src_mac[i]);  // Á½Î»Ê®Áù½øÖÆÏÔÊ¾
-        if (i < 5) std::cout << ":";  // ×Ö½Ú¼äÓÃÃ°ºÅ·Ö¸ô
+        printf("%02x", eth_header->src_mac[i]);  // ä¸¤ä½åå…­è¿›åˆ¶æ˜¾ç¤º
+        if (i < 5) std::cout << ":";  // å­—èŠ‚é—´ç”¨å†’å·åˆ†éš”
     }
     std::cout << std::endl;
     
-    // ÏÔÊ¾Ä¿µÄMACµØÖ·
-    std::cout << "Ä¿µÄMACµØÖ·: ";
+    // æ˜¾ç¤ºç›®çš„MACåœ°å€
+    std::cout << "ç›®çš„MACåœ°å€: ";
     for (int i = 0; i < 6; i++) {
         printf("%02x", eth_header->dest_mac[i]);
         if (i < 5) std::cout << ":";
     }
     std::cout << std::endl;
     
-    // ÏÔÊ¾IPµØÖ·£¨×ª»»Îªµã·ÖÊ®½øÖÆ¸ñÊ½£©
-    std::cout << "Ô´IPµØÖ·: " << ip_to_string(ip_hdr->src_addr) << std::endl;
-    std::cout << "Ä¿µÄIPµØÖ·: " << ip_to_string(ip_hdr->dst_addr) << std::endl;
+    // æ˜¾ç¤ºIPåœ°å€ï¼ˆè½¬æ¢ä¸ºç‚¹åˆ†åè¿›åˆ¶æ ¼å¼ï¼‰
+    std::cout << "æºIPåœ°å€: " << ip_to_string(ip_hdr->src_addr) << std::endl;
+    std::cout << "ç›®çš„IPåœ°å€: " << ip_to_string(ip_hdr->dst_addr) << std::endl;
     
-    // ÏÔÊ¾Ğ­ÒéÀàĞÍ
-    std::cout << "Ğ­ÒéÀàĞÍ: ";
+    // æ˜¾ç¤ºåè®®ç±»å‹
+    std::cout << "åè®®ç±»å‹: ";
     switch (ip_hdr->protocol) {
-        case 1: std::cout << "ICMP"; break;   // Internet¿ØÖÆÏûÏ¢Ğ­Òé
-        case 6: std::cout << "TCP"; break;    // ´«Êä¿ØÖÆĞ­Òé
-        case 17: std::cout << "UDP"; break;   // ÓÃ»§Êı¾İ±¨Ğ­Òé
-        default: std::cout << "ÆäËû(" << (int)ip_hdr->protocol << ")"; break;
+        case 1: std::cout << "ICMP"; break;   // Internetæ§åˆ¶æ¶ˆæ¯åè®®
+        case 6: std::cout << "TCP"; break;    // ä¼ è¾“æ§åˆ¶åè®®
+        case 17: std::cout << "UDP"; break;   // ç”¨æˆ·æ•°æ®æŠ¥åè®®
+        default: std::cout << "å…¶ä»–(" << (int)ip_hdr->protocol << ")"; break;
     }
     std::cout << std::endl;
     
-    // ÏÔÊ¾Êı¾İ°ü³¤¶ÈĞÅÏ¢
-    std::cout << "Êı¾İ°ü×Ü³¤¶È: " << ntohs(ip_hdr->total_len) << "×Ö½Ú" << std::endl;
+    // æ˜¾ç¤ºæ•°æ®åŒ…é•¿åº¦ä¿¡æ¯
+    std::cout << "æ•°æ®åŒ…æ€»é•¿åº¦: " << ntohs(ip_hdr->total_len) << "å­—èŠ‚" << std::endl;
     
-    // ÏÔÊ¾Ô­Ê¼Ğ£ÑéºÍ£¨×ª»»ÎªÖ÷»ú×Ö½ÚĞò±ãÓÚÏÔÊ¾£©
+    // æ˜¾ç¤ºåŸå§‹æ ¡éªŒå’Œï¼ˆè½¬æ¢ä¸ºä¸»æœºå­—èŠ‚åºä¾¿äºæ˜¾ç¤ºï¼‰
     u_short original_checksum = ntohs(ip_hdr->checksum);
-    std::cout << "Ô­Ê¼Ğ£ÑéºÍ: 0x" << std::hex << original_checksum << std::dec << std::endl;
+    std::cout << "åŸå§‹æ ¡éªŒå’Œ: 0x" << std::hex << original_checksum << std::dec << std::endl;
     
-    // ¼ÆËãĞ£ÑéºÍ
+    // è®¡ç®—æ ¡éªŒå’Œ
     u_short calculated_checksum = calculate_ip_checksum(ip_hdr);
     
-    // ½«¼ÆËã³öµÄĞ£ÑéºÍ×ª»»ÎªÍøÂç×Ö½ÚĞòÒÔ±ã±È½Ï
+    // å°†è®¡ç®—å‡ºçš„æ ¡éªŒå’Œè½¬æ¢ä¸ºç½‘ç»œå­—èŠ‚åºä»¥ä¾¿æ¯”è¾ƒ
     u_short calculated_network = htons(calculated_checksum);
-    std::cout << "¼ÆËãĞ£ÑéºÍ: 0x" << std::hex << calculated_checksum 
-              << " (ÍøÂç×Ö½ÚĞò: 0x" << calculated_network << ")" << std::dec << std::endl;
+    std::cout << "è®¡ç®—æ ¡éªŒå’Œ: 0x" << std::hex << calculated_checksum 
+              << " (ç½‘ç»œå­—èŠ‚åº: 0x" << calculated_network << ")" << std::dec << std::endl;
     
-    // ±È½ÏĞ£ÑéºÍ£¨Ê¹ÓÃÍøÂç×Ö½ÚĞò£©
+    // æ¯”è¾ƒæ ¡éªŒå’Œï¼ˆä½¿ç”¨ç½‘ç»œå­—èŠ‚åºï¼‰
     if (original_checksum == calculated_network) {
-        std::cout << "Ğ£Ñé½á¹û: ¡Ì Æ¥Åä£¨Êı¾İ°üÍêÕû£©" << std::endl;
+        std::cout << "æ ¡éªŒç»“æœ: âˆš åŒ¹é…ï¼ˆæ•°æ®åŒ…å®Œæ•´ï¼‰" << std::endl;
     } else {
-        std::cout << "Ğ£Ñé½á¹û: ¡Á ²»Æ¥Åä" << std::endl;
-        // ÏÔÊ¾ÏêÏ¸µÄ×Ö½ÚĞòĞÅÏ¢ÓÃÓÚµ÷ÊÔ
-        std::cout << "  Ô­Ê¼(ÍøÂç×Ö½ÚĞò): 0x" << std::hex << original_checksum << std::dec << std::endl;
-        std::cout << "  ¼ÆËã(ÍøÂç×Ö½ÚĞò): 0x" << std::hex << calculated_network << std::dec << std::endl;
-        std::cout << "  ¼ÆËã(Ö÷»ú×Ö½ÚĞò): 0x" << std::hex << calculated_checksum << std::dec << std::endl;
+        std::cout << "æ ¡éªŒç»“æœ: Ã— ä¸åŒ¹é…" << std::endl;
+        // æ˜¾ç¤ºè¯¦ç»†çš„å­—èŠ‚åºä¿¡æ¯ç”¨äºè°ƒè¯•
+        std::cout << "  åŸå§‹(ç½‘ç»œå­—èŠ‚åº): 0x" << std::hex << original_checksum << std::dec << std::endl;
+        std::cout << "  è®¡ç®—(ç½‘ç»œå­—èŠ‚åº): 0x" << std::hex << calculated_network << std::dec << std::endl;
+        std::cout << "  è®¡ç®—(ä¸»æœºå­—èŠ‚åº): 0x" << std::hex << calculated_checksum << std::dec << std::endl;
     }
     
-    std::cout << std::endl;  // Êı¾İ°ü¼ä¿ÕĞĞ·Ö¸ô
+    std::cout << std::endl;  // æ•°æ®åŒ…é—´ç©ºè¡Œåˆ†éš”
 }
 
-// Ö÷º¯Êı£º³ÌĞòÈë¿Úµã
+// ä¸»å‡½æ•°ï¼šç¨‹åºå…¥å£ç‚¹
 int main() {
-    pcap_if_t* alldevs;        // Éè±¸ÁĞ±íÍ·Ö¸Õë
-    pcap_if_t* device;         // µ±Ç°Éè±¸Ö¸Õë
-    pcap_t* device_handle;    // Éè±¸¾ä±ú
-    char errbuf[PCAP_ERRBUF_SIZE];  // ´íÎóĞÅÏ¢»º³åÇø
-    int count = 0;            // Éè±¸¼ÆÊıÆ÷
-    int selected_device = 4;   // Ñ¡ÔñµÄÉè±¸±àºÅ£¨¸ù¾İÊµ¼ÊÇé¿öµ÷Õû£©
+    pcap_if_t* alldevs;        // è®¾å¤‡åˆ—è¡¨å¤´æŒ‡é’ˆ
+    pcap_if_t* device;         // å½“å‰è®¾å¤‡æŒ‡é’ˆ
+    pcap_t* device_handle;    // è®¾å¤‡å¥æŸ„
+    char errbuf[PCAP_ERRBUF_SIZE];  // é”™è¯¯ä¿¡æ¯ç¼“å†²åŒº
+    int count = 0;            // è®¾å¤‡è®¡æ•°å™¨
+    int selected_device;      // é€‰æ‹©çš„è®¾å¤‡ç¼–å·ï¼ˆæ ¹æ®å®é™…æƒ…å†µè°ƒæ•´ï¼‰
     
-    // ³ÌĞò±êÌâºÍËµÃ÷
-    std::cout << "IPÊı¾İ±¨²¶»ñÓëĞ£ÑéºÍÑéÖ¤" << std::endl;
+    // ç¨‹åºæ ‡é¢˜å’Œè¯´æ˜
+    std::cout << "IPæ•°æ®æŠ¥æ•è·ä¸æ ¡éªŒå’ŒéªŒè¯" << std::endl;
     std::cout << "=================================" << std::endl;
-    std::cout << "ËµÃ÷:³ÌĞò½«³¢ÊÔ²¶»ñIPv4Êı¾İ°ü,ÍøÂçÁ÷Á¿»áÓ°Ïì²¶»ñÊıÁ¿" << std::endl;
-    std::cout << "½¨ÒéÔÚÔËĞĞ³ÌĞòµÄÍ¬Ê±½øĞĞÍøÂç»î¶¯£¨Èçä¯ÀÀÍøÒ³£©" << std::endl << std::endl;
+    std::cout << "è¯´æ˜:ç¨‹åºå°†å°è¯•æ•è·IPv4æ•°æ®åŒ…,ç½‘ç»œæµé‡ä¼šå½±å“æ•è·æ•°é‡" << std::endl;
+    std::cout << "å»ºè®®åœ¨è¿è¡Œç¨‹åºçš„åŒæ—¶è¿›è¡Œç½‘ç»œæ´»åŠ¨ï¼ˆå¦‚æµè§ˆç½‘é¡µï¼‰" << std::endl << std::endl;
     
-    // ³õÊ¼»¯Winsock¿â£¨°æ±¾2.2£©
+    // åˆå§‹åŒ–Winsockåº“ï¼ˆç‰ˆæœ¬2.2ï¼‰
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
     
-    // »ñÈ¡ÍøÂçÉè±¸ÁĞ±í
+    // è·å–ç½‘ç»œè®¾å¤‡åˆ—è¡¨
     if (pcap_findalldevs(&alldevs, errbuf) == -1) {
-        std::cout << "´íÎó: " << errbuf << std::endl;
-        WSACleanup();  // ÇåÀíWinsock×ÊÔ´
-        return 1;      // ÍË³ö³ÌĞò
+        std::cout << "é”™è¯¯: " << errbuf << std::endl;
+        WSACleanup();  // æ¸…ç†Winsockèµ„æº
+        return 1;      // é€€å‡ºç¨‹åº
+    }
+
+    // æ˜¾ç¤ºè®¾å¤‡åˆ—è¡¨
+    for (device = alldevs; device != nullptr; device = device->next) {
+        count++;
+        std::cout << count << ". " << device->name;
+        if (device->description) {
+            std::cout << " - " << device->description;
+        }
+        std::cout << std::endl;
     }
     
-    // Ñ¡ÔñÖ¸¶¨±àºÅµÄÉè±¸£¨ÕâÀïÑ¡ÔñµÚ4¸öÉè±¸£©
+    std::cout << "å…±æ‰¾åˆ° " << count << " ä¸ªè®¾å¤‡" << std::endl;
+
+    std::cout << "é€‰æ‹©è¦ä½¿ç”¨çš„è®¾å¤‡ç¼–å· (1-" << count << "): ";
+    std::cin >> selected_device;  // ä»ç”¨æˆ·è¾“å…¥è·å–è®¾å¤‡ç¼–å·
+    
+    // é€‰æ‹©æŒ‡å®šç¼–å·çš„è®¾å¤‡ï¼ˆè¿™é‡Œé€‰æ‹©ç¬¬4ä¸ªè®¾å¤‡ï¼‰
     device = alldevs;
     for (int i = 1; i < selected_device && device != nullptr; i++) {
-        device = device->next;  // ±éÀúÉè±¸Á´±í
+        device = device->next;  // éå†è®¾å¤‡é“¾è¡¨
     }
     
-    // ¼ì²éÉè±¸Ñ¡ÔñÊÇ·ñÓĞĞ§
+    // æ£€æŸ¥è®¾å¤‡é€‰æ‹©æ˜¯å¦æœ‰æ•ˆ
     if (device == nullptr) {
-        std::cout << "Éè±¸Ñ¡ÔñÎŞĞ§" << std::endl;
-        pcap_freealldevs(alldevs);  // ÊÍ·ÅÉè±¸ÁĞ±í
-        WSACleanup();               // ÇåÀíWinsock×ÊÔ´
-        return 1;                   // ÍË³ö³ÌĞò
+        std::cout << "è®¾å¤‡é€‰æ‹©æ— æ•ˆ" << std::endl;
+        pcap_freealldevs(alldevs);  // é‡Šæ”¾è®¾å¤‡åˆ—è¡¨
+        WSACleanup();               // æ¸…ç†Winsockèµ„æº
+        return 1;                   // é€€å‡ºç¨‹åº
     }
     
-    // ÏÔÊ¾Ñ¡ÔñµÄÉè±¸ĞÅÏ¢
-    std::cout << "Ñ¡ÔñÉè±¸: " << (device->description ? device->description : "ÎŞÃèÊö") << std::endl;
+    // æ˜¾ç¤ºé€‰æ‹©çš„è®¾å¤‡ä¿¡æ¯
+    std::cout << "é€‰æ‹©è®¾å¤‡: " << (device->description ? device->description : "æ— æè¿°") << std::endl;
     
-    // ´ò¿ªÍøÂçÉè±¸½øĞĞÊı¾İ°ü²¶»ñ
-    // ²ÎÊı£ºÉè±¸Ãû£¬×î´ó²¶»ñ³¤¶È£¬»ìÔÓÄ£Ê½£¬³¬Ê±Ê±¼ä£¬´íÎó»º³åÇø
+    // æ‰“å¼€ç½‘ç»œè®¾å¤‡è¿›è¡Œæ•°æ®åŒ…æ•è·
+    // å‚æ•°ï¼šè®¾å¤‡åï¼Œæœ€å¤§æ•è·é•¿åº¦ï¼Œæ··æ‚æ¨¡å¼ï¼Œè¶…æ—¶æ—¶é—´ï¼Œé”™è¯¯ç¼“å†²åŒº
     device_handle = pcap_open_live(device->name, 65536, 1, 5000, errbuf);
     if (device_handle == nullptr) {
-        std::cout << "´ò¿ªÉè±¸Ê§°Ü: " << errbuf << std::endl;
-        pcap_freealldevs(alldevs);  // ÊÍ·ÅÉè±¸ÁĞ±í
-        WSACleanup();               // ÇåÀíWinsock×ÊÔ´
-        return 1;                   // ÍË³ö³ÌĞò
+        std::cout << "æ‰“å¼€è®¾å¤‡å¤±è´¥: " << errbuf << std::endl;
+        pcap_freealldevs(alldevs);  // é‡Šæ”¾è®¾å¤‡åˆ—è¡¨
+        WSACleanup();               // æ¸…ç†Winsockèµ„æº
+        return 1;                   // é€€å‡ºç¨‹åº
     }
     
-    // ¿ªÊ¼²¶»ñÊı¾İ°ü
-    std::cout << "¿ªÊ¼²¶»ñIPv4Êı¾İ°ü(×î¶àµÈ´ı5Ãë)..." << std::endl;
-    std::cout << "Çë½øĞĞÍøÂç»î¶¯ÒÔ²úÉú¸ü¶àÊı¾İ°ü..." << std::endl << std::endl;
+    // å¼€å§‹æ•è·æ•°æ®åŒ…
+    std::cout << "å¼€å§‹æ•è·IPv4æ•°æ®åŒ…(æœ€å¤šç­‰å¾…5ç§’)..." << std::endl;
+    std::cout << "è¯·è¿›è¡Œç½‘ç»œæ´»åŠ¨ä»¥äº§ç”Ÿæ›´å¤šæ•°æ®åŒ…..." << std::endl << std::endl;
     
-    // Æô¶¯Êı¾İ°ü²¶»ñÑ­»·
-    // ²ÎÊı£ºÉè±¸¾ä±ú£¬²¶»ñÊıÁ¿£¬»Øµ÷º¯Êı£¬ÓÃ»§Êı¾İ
+    // å¯åŠ¨æ•°æ®åŒ…æ•è·å¾ªç¯
+    // å‚æ•°ï¼šè®¾å¤‡å¥æŸ„ï¼Œæ•è·æ•°é‡ï¼Œå›è°ƒå‡½æ•°ï¼Œç”¨æˆ·æ•°æ®
     pcap_loop(device_handle, 5, packet_handler, nullptr);
     
-    // ÇåÀí×ÊÔ´
-    pcap_close(device_handle);    // ¹Ø±ÕÉè±¸
-    pcap_freealldevs(alldevs);   // ÊÍ·ÅÉè±¸ÁĞ±í
-    WSACleanup();                // ÇåÀíWinsock×ÊÔ´
+    // æ¸…ç†èµ„æº
+    pcap_close(device_handle);    // å…³é—­è®¾å¤‡
+    pcap_freealldevs(alldevs);   // é‡Šæ”¾è®¾å¤‡åˆ—è¡¨
+    WSACleanup();                // æ¸…ç†Winsockèµ„æº
     
-    std::cout << "³ÌĞò½áÊø" << std::endl;
-    system("pause");  // ÔİÍ£µÈ´ıÓÃ»§°´¼ü
-    return 0;         // Õı³£ÍË³ö
+    std::cout << "ç¨‹åºç»“æŸ" << std::endl;
+    system("pause");  // æš‚åœç­‰å¾…ç”¨æˆ·æŒ‰é”®
+    return 0;         // æ­£å¸¸é€€å‡º
 }
